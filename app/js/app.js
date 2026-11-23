@@ -1967,5 +1967,5 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 // za razvoj/teste
-window.__vr = { search, departures, trips, DIRS, S };
+window.__vr = { search, departures, trips, DIRS, S, upd: { check: () => { updLast = 0; return checkForUpdate(); }, pending: () => updPending } };
 })();

@@ -1,8 +1,8 @@
 {
-    "build":  "20261123-135819",
+    "build":  "20261123-135919",
     "version":  "1.5",
     "apk":  6,
     "apkUrl":  "https://janznidaric911.github.io/vozni-red-maribor/",
-    "apkNote":  "Samodejne posodobitve aplikacije",
-    "opis":  "Samodejne posodobitve aplikacije"
+    "apkNote":  "",
+    "opis":  "Test A"
 }
