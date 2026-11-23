@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Račun · Vozni red Maribor</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #F7F3F3; --card: #fff; --text: #1E1214; --muted: #76666A; --line: #EDE3E4; --primary: #D7193A; --ok: #1D6E45; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #120A0B; --card: #1B1012; --text: #F7EDEE; --muted: #B09DA1; --line: #2E1E21; --primary: #FF4D63; --ok: #6FD39C; color-scheme: dark; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: var(--bg); color: var(--text);
+      background-image: radial-gradient(800px 400px at 50% -10%, rgba(215, 25, 58, .18), transparent); }
+    .card { width: 100%; max-width: 420px; background: var(--card); border-radius: 28px; padding: 28px 24px; box-shadow: 0 30px 60px -30px rgba(60, 6, 16, .45), 0 0 0 1px var(--line); text-align: center; }
+    .logo { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 22px; display: grid; place-items: center; background: linear-gradient(150deg, #E0384F, #9E1030 55%, #4A0814); color: #fff; box-shadow: 0 14px 30px -12px rgba(158, 16, 48, .8); }
+    .logo svg { width: 38px; height: 38px; }
+    h1 { font-size: 24px; margin: 0 0 8px; letter-spacing: -.02em; }
+    p { color: var(--muted); line-height: 1.55; margin: 0 0 18px; }
+    .ok { color: var(--ok); }
+    form { display: grid; gap: 10px; text-align: left; }
+    label { font-size: 13px; font-weight: 700; color: var(--muted); }
+    input { width: 100%; font: inherit; font-size: 16px; padding: 14px 16px; border-radius: 14px; border: 1.5px solid var(--line); background: transparent; color: var(--text); outline: none; }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(215, 25, 58, .2); }
+    button { font: inherit; font-weight: 800; font-size: 16px; color: #fff; border: 0; border-radius: 16px; padding: 16px; cursor: pointer; background: linear-gradient(135deg, #E5243F, #B5102C); box-shadow: 0 12px 26px -12px rgba(181, 16, 44, .8); }
+    button:disabled { opacity: .6; }
+    .err { color: var(--primary); font-weight: 600; font-size: 14px; min-height: 20px; margin: 0; }
+    a { color: var(--primary); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main class="card" id="card">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M8 18v2M16 18v2"/></svg></div>
+    <h1>Preverjam …</h1>
+    <p>Trenutek.</p>
+  </main>
+  <script>
+    (function () {
+      var URL0 = 'https://miutavwmyeyckmrazgds.supabase.co', KEY = 'sb_publishable_aCv6vh94lVHhiIVvJ9HLog_NKEhLCc5';
+      var card = document.getElementById('card'), logo = card.querySelector('.logo').outerHTML;
+      var q = new URLSearchParams((location.hash || '').replace(/^#/, '') + '&' + location.search.replace(/^\?/, ''));
+      function show(title, html) { card.innerHTML = logo + '<h1>' + title + '</h1>' + html; }
+      // povezavo očistimo iz naslova, da žeton ne ostane v zgodovini
+      if (location.hash) history.replaceState(null, '', location.pathname);
+      var err = q.get('error_description') || q.get('error');
+      if (err) {
+        show('Povezava ne velja', '<p>' + (/expired|invalid/i.test(err) ? 'Povezava je potekla ali je bila že uporabljena.' : 'Prišlo je do napake.') +
+          ' V aplikaciji Vozni red se poskusi prijaviti ali zahtevaj novo povezavo (»Pozabljeno geslo?«).</p>');
+        return;
+      }
+      var type = q.get('type'), token = q.get('access_token');
+      if (type === 'recovery' && token) {
+        show('Novo geslo', '<p>Vpiši novo geslo za svoj račun.</p><form id="f"><label for="pw">Novo geslo</label>' +
+          '<input id="pw" type="password" autocomplete="new-password" minlength="8" required placeholder="Vsaj 8 znakov">' +
+          '<p class="err" id="e"></p><button id="b">Shrani geslo</button></form>');
+        document.getElementById('f').addEventListener('submit', function (ev) {
+          ev.preventDefault();
+          var pw = document.getElementById('pw').value, e = document.getElementById('e'), b = document.getElementById('b');
+          if (pw.length < 8) { e.textContent = 'Geslo naj ima vsaj 8 znakov.'; return; }
+          b.disabled = true; e.textContent = '';
+          fetch(URL0 + '/auth/v1/user', { method: 'PUT', headers: { apikey: KEY, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (res) {
+              if (res.ok) show('Geslo je spremenjeno ✓', '<p class="ok">Zdaj se lahko v aplikaciji prijaviš z novim geslom.</p>');
+              else { b.disabled = false; e.textContent = (res.j && (res.j.msg || res.j.message)) || 'Shranjevanje ni uspelo.'; }
+            })
+            .catch(function () { b.disabled = false; e.textContent = 'Ni internetne povezave.'; });
+        });
+        return;
+      }
+      if (token || type === 'signup' || type === 'email' || q.get('code')) {
+        show('Račun je potrjen ✓', '<p class="ok">Hvala! Tvoj e-naslov je potrjen.</p><p>Vrni se v aplikacijo <b>Vozni red Maribor</b> in se prijavi s svojim e-naslovom in geslom – na kateremkoli telefonu.</p>');
+        return;
+      }
+      show('Vozni red Maribor', '<p>Ta stran se uporablja za potrjevanje računov in nastavitev novega gesla.</p><p><a href="./">Prenesi aplikacijo</a></p>');
+    })();
+  </script>
+</body>
+</html>
