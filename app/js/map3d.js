@@ -13,6 +13,7 @@
   const LIB_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   const LIB_CSS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
   const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+  const STYLE_2D = 'https://tiles.openfreemap.org/styles/positron', STYLE_2D_DARK = 'https://tiles.openfreemap.org/styles/dark';
   const pad = n => String(n).padStart(2, '0');
   const fmt = m => { m = Math.round(m); return pad(Math.floor(m / 60) % 24) + ':' + pad(((m % 60) + 60) % 60); };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -60,7 +61,7 @@
   }
 
   function mount(container, opts) {
-    const fs = opts.fs || 1;
+    const fs = opts.fs || 1, FLAT = !!opts.flat;
     let alive = true, map = null, raf = 0, markers = [];
     const destroy = () => {
       alive = false; cancelAnimationFrame(raf);
@@ -73,7 +74,7 @@
     if (!navigator.onLine) { fail('offline'); return { destroy }; }
     if (!webglOk()) { fail('webgl'); return { destroy }; }
 
-    container.classList.add('m3d');
+    container.classList.add('m3d'); container.classList.toggle('flat', FLAT);
     container.innerHTML = `<div class="m3d-map"></div>
       <div class="m3d-load"><span class="spin"></span>Nalagam zemljevid …</div>
       <div class="r3d-hud m3d-hud"><div class="r3d-clock"><b>--:--</b><span>&nbsp;</span></div>
@@ -124,20 +125,22 @@
     function overview(anim) {
       if (!map) return;
       const h = el.clientHeight || 360;
-      map.fitBounds(bounds, { padding: { top: Math.min(90, h * .22), bottom: 36, left: 28, right: 64 }, pitch: 50, bearing: -15, duration: anim && !opts.reduceMotion ? 900 : 0, maxZoom: 16.5 });
+      map.fitBounds(bounds, { padding: { top: Math.min(90, h * .22), bottom: 36, left: 28, right: 64 }, pitch: FLAT ? 0 : 50, bearing: FLAT ? 0 : -15, duration: anim && !opts.reduceMotion ? 900 : 0, maxZoom: 16.5 });
     }
 
     loadLib().then(ml => {
       if (!alive) return;
       try {
         map = new ml.Map({
-          container: el, style: STYLE, center: [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2],
-          zoom: 14, pitch: 55, bearing: -18, antialias: true, attributionControl: { compact: true }, maxPitch: 75,
+          container: el, style: FLAT ? (opts.dark ? STYLE_2D_DARK : STYLE_2D) : STYLE, center: [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2],
+          zoom: 14, pitch: FLAT ? 0 : 55, bearing: FLAT ? 0 : -18, antialias: true, attributionControl: { compact: true }, maxPitch: FLAT ? 0 : 75,
+          dragRotate: !FLAT, pitchWithRotate: !FLAT,
           fadeDuration: opts.reduceMotion ? 0 : 300,
         });
       } catch (e) { fail('webgl'); return; }
       window.__m3d = map;
-      map.addControl(new ml.NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true }), 'bottom-right');
+      map.addControl(new ml.NavigationControl({ visualizePitch: !FLAT, showZoom: true, showCompass: !FLAT }), 'bottom-right');
+      if (FLAT) map.touchZoomRotate.disableRotation();
       if ('ResizeObserver' in window) { const ro = new ResizeObserver(() => { if (map) map.resize(); }); ro.observe(el); markers.push({ remove: () => ro.disconnect() }); }
       const stopErr = setTimeout(() => { if (alive && map && !map.loaded()) loadEl.textContent = 'Zemljevid se nalaga počasi … preveri internetno povezavo.'; }, 9000);
       map.on('error', ev => { if (alive && !map.isStyleLoaded() && ev && ev.error && /style|Failed to fetch|NetworkError/i.test(String(ev.error.message))) fail('offline'); });
@@ -175,7 +178,7 @@
         map.addLayer({ id: 'stop-name', type: 'symbol', source: 'stops', layout: {
           'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': ['case', ['==', ['get', 'big'], 1], 15 * fs, 12.5 * fs],
           'text-offset': [0, 1.15], 'text-anchor': 'top', 'symbol-sort-key': ['get', 'rank'], 'text-padding': 4, 'text-max-width': 10,
-        }, paint: { 'text-color': '#1E1214', 'text-halo-color': '#fff', 'text-halo-width': 2.2 } });
+        }, paint: { 'text-color': FLAT && opts.dark ? '#F7EDEE' : '#1E1214', 'text-halo-color': FLAT && opts.dark ? '#120A0B' : '#fff', 'text-halo-width': 2.2 } });
 
         // začetek, cilj, avtobus
         const mk = (html, cls, lnglat, anchor) => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; const m = new ml.Marker({ element: d, anchor: anchor || 'bottom' }).setLngLat(lnglat).addTo(map); markers.push(m); return d; };
@@ -218,7 +221,7 @@
             if (hdg == null) hdg = target;
             let d = ((target - hdg + 540) % 360) - 180;
             hdg += d * Math.min(1, dt * 2.2);
-            map.jumpTo({ center: [p.lon, p.lat], bearing: hdg, pitch: 64, zoom: 17 });
+            map.jumpTo(FLAT ? { center: [p.lon, p.lat], zoom: 16.3 } : { center: [p.lon, p.lat], bearing: hdg, pitch: 64, zoom: 17 });
           }
           clockB.textContent = fmt(ti.t);
           clockS.textContent = s >= total - 1 ? '● Cilj: ' + Z.name : (ti.at ? '● ' : '→ ') + ti.next.name;
@@ -233,7 +236,7 @@
       follow = on; hdg = null;
       btn('follow').classList.toggle('on', on);
       if (on) { if (!playing) { playing = true; syncPlay(); } if (s >= total) { s = 0; pauseT = 0; } }
-      else if (map) map.easeTo({ pitch: 55, duration: opts.reduceMotion ? 0 : 500 });
+      else if (map && !FLAT) map.easeTo({ pitch: 55, duration: opts.reduceMotion ? 0 : 500 });
     }
     function syncPlay() { btn('play').innerHTML = playing ? ICON.pause : ICON.play; btn('play').classList.toggle('on', playing); }
     btn('play').addEventListener('click', () => { playing = !playing; if (playing && s >= total) { s = 0; pauseT = 0; } syncPlay(); });
@@ -250,5 +253,5 @@
     return { destroy };
   }
 
-  window.Map3D = { mount, preload: () => { if (navigator.onLine) loadLib().catch(() => {}); } };
+  window.Map3D = { mount, loadLib, preload: () => { if (navigator.onLine) loadLib().catch(() => {}); } };
 })();

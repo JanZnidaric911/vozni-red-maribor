@@ -1,10 +1,10 @@
 /* Service worker: vedno najprej sveže datoteke s spleta (samodejne posodobitve),
-   brez interneta pa zadnja shranjena kopija. Oznako 20261123-140137 zamenja skripta objavi.ps1. */
-const BUILD = '20261123-140137';
+   brez interneta pa zadnja shranjena kopija. Oznako 20261123-143359 zamenja skripta objavi.ps1. */
+const BUILD = '20261123-143359';
 const CACHE = 'voznired-' + BUILD;
 const CORE = ['./', 'index.html', 'manifest.webmanifest',
-  'css/style.css', 'css/extra.css', 'css/account.css',
-  'js/build.js', 'js/config.js', 'js/data.js', 'js/roads.js', 'js/route3d.js', 'js/map3d.js', 'js/avatar.js', 'js/account.js', 'js/app.js',
+  'css/style.css', 'css/extra.css', 'css/account.css', 'css/maps.css',
+  'js/build.js', 'js/config.js', 'js/data.js', 'js/roads.js', 'js/route3d.js', 'js/map3d.js', 'js/stopmap.js', 'js/avatar.js', 'js/account.js', 'js/app.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {

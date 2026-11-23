@@ -677,11 +677,12 @@ function mapBaseSvg() {
   let s = '';
   if (MAPD && MAPD.outline && MAPD.outline.length) s += `<polygon points="${pts(MAPD.outline)}" fill="var(--map-land)" stroke="var(--map-edge)" stroke-width="1.2" stroke-linejoin="round"/>`;
   if (MAPD && MAPD.pohorje && MAPD.pohorje.length) s += `<polygon points="${pts(MAPD.pohorje)}" fill="var(--map-forest)" stroke="none"/>`;
-  if (MAPD && MAPD.river && MAPD.river.length) {
-    const rp = pts(MAPD.river);
+  (MAPD && (MAPD.rivers || (MAPD.river ? [MAPD.river] : [])) || []).forEach(rv => {
+    if (!rv || rv.length < 2) return;
+    const rp = pts(rv);
     s += `<polyline points="${rp}" fill="none" stroke="var(--map-water)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
       <polyline points="${rp}" fill="none" stroke="var(--map-water)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
-  }
+  });
   if (MAPD && MAPD.pohorje && MAPD.pohorje.length) {
     const cx = MAPD.pohorje.reduce((a, p) => a + p[0], 0) / MAPD.pohorje.length, cy = MAPD.pohorje.reduce((a, p) => a + p[1], 0) / MAPD.pohorje.length;
     const [px, py] = project(cx, cy);
@@ -787,7 +788,7 @@ SCREENS.detail = () => {
         <button class="${S.view3d ? '' : 'on'}" data-a="mapview" data-v="2d" role="tab" aria-selected="${!S.view3d}">${icon('map')}2D</button>
         <button class="${S.view3d ? 'on' : ''}" data-a="mapview" data-v="3d" role="tab" aria-selected="${S.view3d}">${icon('cube')}3D</button>
       </div></div>
-    <div id="mapbox">${S.view3d ? '<div class="r3d" id="r3d"></div>' : mapSvg(c)}</div>
+    <div id="mapbox"><div class="r3d" id="r3d"></div></div>
   </section>
   <section class="card">${legsHtml}</section>
   ${amen.length ? `<section class="card"><h3>Na avtobusu</h3><div class="amen">${amen.map(a => `<span class="${a === 'eco' ? 'eco' : ''}">${icon(AMENITIES[a].icon)}${esc(AMENITIES[a].label)}</span>`).join('')}</div></section>` : ''}
@@ -1054,10 +1055,12 @@ function smFit() {
   SMAP.vb = { x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h };
 }
 function smFocus(lon, lat, w) {
+  if (SMAP.ml) { SMAP.ml.focus(lon, lat, 15.6); return; }
   const [x, y] = project(lon, lat), a = SMAP.cw / SMAP.ch;
   SMAP.vb = { w, h: w / a, x: x - w / 2, y: y - w / a / 2 };
 }
 function smDraw() {
+  if (SMAP.ml) { SMAP.ml.select(SMAP.sel, false); if (myLoc && inCity(myLoc)) SMAP.ml.setMe(myLoc); return; }
   const vb = SMAP.vb, k = vb.w / SMAP.cw;            // enot SVG na zaslonski piksel
   const svg = SMAP.el.querySelector('svg.sm');
   svg.setAttribute('viewBox', `${vb.x.toFixed(2)} ${vb.y.toFixed(2)} ${vb.w.toFixed(2)} ${vb.h.toFixed(2)}`);
@@ -1114,7 +1117,7 @@ function smLocate(auto) {
       return;
     }
     const n = nearestStop(p);
-    smFocus(p.lon, p.lat, Math.min(SMAP.vb.w, 90));
+    smFocus(p.lon, p.lat, SMAP.vb ? Math.min(SMAP.vb.w, 90) : 90);
     smSelect(n.id, 'Najbližja postaja');
   });
 }
@@ -1124,6 +1127,20 @@ function initStopMap() {
   SMAP.sel = null;
   smFit();
   const cur = S.picker === 'board' ? S.boardStation : S.picker === 'home' ? SET.home : S[S.picker];
+  // pravi zemljevid (MapLibre); brez interneta ostane shematski SVG
+  if (SMAP.ml) { SMAP.ml.destroy(); SMAP.ml = null; }
+  if (window.StopMap) {
+    const box = document.createElement('div'); box.className = 'sm-ml';
+    SMAP.el.prepend(box); SMAP.el.classList.add('ml');
+    SMAP.ml = window.StopMap.mount(box, {
+      stations: ST_IDS.map(id => ({ id, name: STATIONS[id].name, lon: STATIONS[id].lon, lat: STATIONS[id].lat, hub: !!STATIONS[id].hub })),
+      lines: LINES.map(l => ({ color: l.color, coords: l.stops.slice(1).reduce((acc, id, k) => acc.concat(roadPath(l.stops[k], id).slice(acc.length ? 1 : 0)), []) })),
+      selected: cur && STATIONS[cur] ? cur : null, home: SET.home, dark: effectiveTheme() === 'dark', center: [STATIONS[HUB].lon, STATIONS[HUB].lat],
+      fs: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 1,
+      onSelect: id => { haptic(); smSelect(id); },
+      onFail: () => { box.remove(); SMAP.ml = null; if (SMAP.el) { SMAP.el.classList.remove('ml'); smDraw(); } },
+    });
+  }
   smDraw();
   smInfo(`${icon('pin')}<span class="tx">Tapni postajo na zemljevidu, da vidiš njeno ime in linije.</span>`, true);
   if (cur && STATIONS[cur]) smSelect(cur, 'Trenutno izbrana');
@@ -1140,14 +1157,14 @@ function initStopMap() {
   SMAP.zoomAt = zoomAt;
   const el = SMAP.el;
   el.addEventListener('pointerdown', e => {
-    if (e.target.closest('.sm-ctrl')) return;
+    if (SMAP.ml || e.target.closest('.sm-ctrl')) return;
     el.setPointerCapture && el.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, [e.clientX, e.clientY]);
     if (ptrs.size === 1) moved = 0;
     if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); vb0 = { ...SMAP.vb }; mid0 = toSvg((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); }
   });
   el.addEventListener('pointermove', e => {
-    if (!ptrs.has(e.pointerId)) return;
+    if (SMAP.ml || !ptrs.has(e.pointerId)) return;
     const prev = ptrs.get(e.pointerId);
     ptrs.set(e.pointerId, [e.clientX, e.clientY]);
     if (ptrs.size === 1) {
@@ -1166,6 +1183,7 @@ function initStopMap() {
     }
   });
   const end = e => {
+    if (SMAP.ml) return;
     const tap = ptrs.size === 1 && moved <= 6 && ptrs.has(e.pointerId);
     ptrs.delete(e.pointerId);
     if (ptrs.size < 2) pinch0 = 0;
@@ -1183,7 +1201,7 @@ function initStopMap() {
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); pinch0 = 0; el.classList.remove('drag'); });
-  el.addEventListener('wheel', e => { e.preventDefault(); const [sx, sy] = toSvg(e.clientX, e.clientY); zoomAt(Math.exp(e.deltaY * .0015), sx, sy); }, { passive: false });
+  el.addEventListener('wheel', e => { if (SMAP.ml) return; e.preventDefault(); const [sx, sy] = toSvg(e.clientX, e.clientY); zoomAt(Math.exp(e.deltaY * .0015), sx, sy); }, { passive: false });
 }
 function pickerBody(mode) {
   if (mode === 'list') return `<div class="st-list" id="st-list">${stationList('')}</div>`;
@@ -1201,6 +1219,7 @@ function pickerBody(mode) {
   </div>`;
 }
 function setPickMode(mode) {
+  if (SMAP.ml) { SMAP.ml.destroy(); SMAP.ml = null; }
   S.pickMode = mode;
   sheet.querySelectorAll('.pick-mode button').forEach(b => b.classList.toggle('on', b.dataset.v === mode));
   const host = sheet.querySelector('#pick-body');
@@ -1265,7 +1284,7 @@ function mountCanvas3d(host, info, why) {
   });
   const inst = window.Route3D.mount(host, {
     legs,
-    ctx: { outline: MAPD && conv(MAPD.outline), river: MAPD && conv(MAPD.river), forest: MAPD && conv(MAPD.pohorje), stations: ST_IDS.map(id => toKm(STATIONS[id].lon, STATIONS[id].lat)) },
+    ctx: { outline: MAPD && conv(MAPD.outline), rivers: MAPD && (MAPD.rivers || [MAPD.river]).filter(Boolean).map(conv), forest: MAPD && conv(MAPD.pohorje), stations: ST_IDS.map(id => toKm(STATIONS[id].lon, STATIONS[id].lat)) },
     reduceMotion: reduceMotion(),
   });
   if (why) {
@@ -1279,12 +1298,16 @@ function mount3d() {
   if (r3d) { r3d.destroy(); r3d = null; }
   const host = document.getElementById('r3d');
   if (!host || !S.sel) return;
-  const info = legsInfo(S.sel);
-  const fallback = (el, why) => { r3d = mountCanvas3d(el, info, why); };
+  const info = legsInfo(S.sel), flat = !S.view3d;
+  // brez interneta: 2D -> shematski zemljevid, 3D -> poenostavljen 3D prikaz
+  const fallback = (el, why) => {
+    if (flat) { r3d = null; el.className = ''; el.innerHTML = mapSvg(S.sel); return; }
+    r3d = mountCanvas3d(el, info, why);
+  };
   if (window.Map3D) {
     r3d = window.Map3D.mount(host, {
       legs: info.map(({ l, r, stops }) => ({ id: l.dir.line.id, color: l.dir.line.color, coords: r.coords, stops })),
-      fallback, reduceMotion: reduceMotion(),
+      fallback, reduceMotion: reduceMotion(), flat, dark: effectiveTheme() === 'dark',
       fs: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 1,
     });
   } else fallback(host);
@@ -1539,7 +1562,7 @@ function render(anim = 'fade') {
   v.innerHTML = SCREENS[name]();
   if (r3d) { r3d.destroy(); r3d = null; }
   views.replaceChildren(v);
-  if (name === 'detail' && S.view3d) mount3d();
+  if (name === 'detail') mount3d();
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === S.tab));
   $('#tabbar').classList.toggle('hidden', name === 'detail' || name === 'avatar');
   const key = S.tab + ':' + name;
@@ -1592,6 +1615,7 @@ function openSheet(html, tall) {
   try { history.pushState({ sheet: 1 }, ''); } catch (e) {}
 }
 function closeSheet(fromPop) {
+  if (typeof SMAP !== 'undefined' && SMAP.ml) { SMAP.ml.destroy(); SMAP.ml = null; }
   if (document.activeElement) document.activeElement.blur();
   window.scrollTo(0, 0);
   sheet.classList.remove('open'); backdrop.classList.remove('open');
@@ -1822,16 +1846,16 @@ const A = {
   /* izbirnik postaj in zemljevid */
   pickmode: el => setPickMode(el.dataset.v),
   smloc: () => smLocate(false),
-  smzoom: el => { if (!SMAP.zoomAt) return; const vb = SMAP.vb; SMAP.zoomAt(el.dataset.v === 'in' ? .6 : 1.6, vb.x + vb.w / 2, vb.y + vb.h / 2); },
+  smzoom: el => { if (SMAP.ml) { SMAP.ml.zoom(el.dataset.v === 'in' ? 1 : -1); return; } if (!SMAP.zoomAt) return; const vb = SMAP.vb; SMAP.zoomAt(el.dataset.v === 'in' ? .6 : 1.6, vb.x + vb.w / 2, vb.y + vb.h / 2); },
 
   /* podrobnosti */
   mapview: el => {
     S.view3d = el.dataset.v === '3d';
     const box = $('#mapbox'); if (!box) return;
     if (r3d) { r3d.destroy(); r3d = null; }
-    box.innerHTML = S.view3d ? '<div class="r3d" id="r3d"></div>' : mapSvg(S.sel);
+    box.innerHTML = '<div class="r3d" id="r3d"></div>';
     el.parentElement.querySelectorAll('button').forEach(b => { const on = b === el; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
-    if (S.view3d) mount3d();
+    mount3d();
   },
   speak: () => speakTrip(),
 

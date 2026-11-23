@@ -1,0 +1,21 @@
+/* =====================================================================
+   Pravi zemljevidi (MapLibre): izbira postaje in 2D pot
+   ===================================================================== */
+.stopmap.ml { background: #E9EEF2; }
+.stopmap.ml svg.sm { display: none; }
+.stopmap .sm-ml { position: absolute !important; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.stopmap .sm-ctrl, .stopmap .sm-legend { z-index: 2; }
+.stopmap.ml .sm-legend { bottom: 26px; }
+.stopmap .maplibregl-ctrl-attrib { font-size: 10px; }
+.stopmap .maplibregl-ctrl-bottom-right { z-index: 1; }
+
+/* moja lokacija */
+.sm-me { position: relative; width: 22px; height: 22px; pointer-events: none; }
+.sm-me i { position: absolute; inset: -12px; border-radius: 50%; background: rgba(30, 111, 224, .22); animation: smPulse 2s ease-out infinite; }
+.sm-me b { position: absolute; inset: 0; border-radius: 50%; background: #1E6FE0; border: 3.5px solid #fff; box-shadow: 0 3px 10px rgba(0, 0, 0, .35); }
+
+/* 2D pot pri podrobnostih: svetlejše ozadje in ploščata kartica */
+.m3d.flat { background: #EEF1F4; }
+.m3d.flat .m3d-load { background: linear-gradient(160deg, #F4F6F8, #E6EBEF); }
+html[data-dark="1"] .m3d.flat, html[data-dark="1"] .stopmap.ml { background: #1D2024; }
+html[data-dark="1"] .m3d.flat .m3d-load { background: linear-gradient(160deg, #22262B, #181B1F); color: #DCCACD; }

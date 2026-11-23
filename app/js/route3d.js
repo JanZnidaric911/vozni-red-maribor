@@ -202,7 +202,7 @@
       if (C.forest && pathPoly(clipPoly(C.forest.map(([x, y]) => toCam([x, y, 0]))), true)) {
         g.fillStyle = 'rgba(90,150,90,.16)'; g.fill();
       }
-      if (C.river) { polyline(C.river, 0, 'rgba(90,160,220,.22)', 9); polyline(C.river, 0, 'rgba(120,185,240,.6)', 2.5); }
+      (C.rivers || (C.river ? [C.river] : [])).forEach(rv => { polyline(rv, 0, 'rgba(90,160,220,.22)', 9); polyline(rv, 0, 'rgba(120,185,240,.6)', 2.5); });
       if (C.stations) {
         g.fillStyle = 'rgba(255,255,255,.22)';
         C.stations.forEach(([x, y]) => { const q = P(x, y, 0); if (q) { g.beginPath(); g.arc(q.p[0], q.p[1], 1.6, 0, TAU); g.fill(); } });
