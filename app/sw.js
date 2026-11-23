@@ -1,6 +1,6 @@
 /* Service worker: vedno najprej sveže datoteke s spleta (samodejne posodobitve),
-   brez interneta pa zadnja shranjena kopija. Oznako 20261123-135959 zamenja skripta objavi.ps1. */
-const BUILD = '20261123-135959';
+   brez interneta pa zadnja shranjena kopija. Oznako 20261123-140137 zamenja skripta objavi.ps1. */
+const BUILD = '20261123-140137';
 const CACHE = 'voznired-' + BUILD;
 const CORE = ['./', 'index.html', 'manifest.webmanifest',
   'css/style.css', 'css/extra.css', 'css/account.css',
