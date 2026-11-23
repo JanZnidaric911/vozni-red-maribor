@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vozni red Maribor – prenesi aplikacijo za Android</title>
+  <meta name="description" content="Vozni red Maribor: iskanje povezav med postajami, odhodi v živo, vozni redi za delavnike, sobote in praznike, demo vozovnice in delovanje brez interneta. Brezplačna demo aplikacija za Android.">
+  <meta name="theme-color" content="#9E1030" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#140B0D" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#vsebina">Preskoči na vsebino</a>
+
+  <!-- Shared SVG symbols -->
+  <svg width="0" height="0" class="sr-only" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#E0384F"/>
+        <stop offset=".55" stop-color="#9E1030"/>
+        <stop offset="1" stop-color="#4A0814"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="15" fill="url(#brandGrad)"/>
+        <rect x="16" y="13" width="32" height="34" rx="8" fill="#fff"/>
+        <rect x="20" y="18" width="24" height="12" rx="3" fill="#9E1030"/>
+        <circle cx="23.5" cy="38.5" r="2.6" fill="#9E1030"/>
+        <circle cx="40.5" cy="38.5" r="2.6" fill="#9E1030"/>
+        <rect x="19" y="46" width="6" height="5" rx="2" fill="#fff"/>
+        <rect x="39" y="46" width="6" height="5" rx="2" fill="#fff"/>
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="site-header" id="glava">
+    <div class="wrap header-inner">
+      <a class="brand" href="#" aria-label="Vozni red Maribor – na vrh strani">
+        <svg class="brand-logo" aria-hidden="true"><use href="#logo"/></svg>
+        <span class="brand-name">Vozni red <strong>Maribor</strong></span>
+      </a>
+      <nav class="nav" aria-label="Glavna navigacija">
+        <ul>
+          <li><a href="#funkcije">Funkcije</a></li>
+          <li><a href="#namestitev">Namestitev</a></li>
+          <li><a href="#vprasanja">Vprašanja</a></li>
+        </ul>
+      </nav>
+      <a class="btn btn-sm btn-primary header-cta" href="Vozni-red.apk" download>
+        <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>
+        <span>Prenesi</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="vsebina">
+    <!-- HERO -->
+    <section class="hero" aria-labelledby="hero-naslov">
+      <div class="hero-bg" aria-hidden="true">
+        <div class="glow glow-1" data-parallax="0.12"></div>
+        <div class="glow glow-2" data-parallax="-0.08"></div>
+        <svg class="skyline" data-parallax="0.05" viewBox="0 0 1440 320" preserveAspectRatio="xMidYMax slice" fill="none">
+          <!-- Pohorje -->
+          <path class="hill hill-back" d="M0 210 C 120 150 210 120 330 132 C 450 144 520 92 650 84 C 780 76 860 128 980 118 C 1100 108 1180 70 1300 82 C 1370 89 1410 104 1440 112"/>
+          <path class="hill hill-front" d="M0 238 C 140 200 240 186 380 196 C 520 206 600 168 740 166 C 880 164 960 198 1100 190 C 1240 182 1330 160 1440 168"/>
+          <!-- gondola line -->
+          <path class="cable" d="M1020 250 L1270 92"/>
+          <rect class="cable-car" x="1140" y="160" width="14" height="11" rx="3"/>
+          <!-- Drava bridge -->
+          <path class="bridge" d="M120 262 H1320"/>
+          <path class="bridge-arch" d="M180 262 Q 300 196 420 262 M420 262 Q 540 196 660 262 M660 262 Q 780 196 900 262 M900 262 Q 1020 196 1140 262 M1140 262 Q 1230 214 1320 262"/>
+          <path class="bridge-pillars" d="M300 232 V262 M540 232 V262 M780 232 V262 M1020 232 V262 M1230 238 V262"/>
+          <!-- river -->
+          <path class="river" d="M0 290 C 240 278 480 300 720 288 C 960 276 1200 298 1440 286"/>
+          <path class="river river-2" d="M0 306 C 260 296 500 314 760 304 C 1000 294 1220 312 1440 302"/>
+        </svg>
+      </div>
+
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow reveal"><span class="dot" aria-hidden="true"></span> Različica 1.1 · brezplačno</p>
+          <h1 id="hero-naslov" class="reveal">Maribor na dlani.<br><span class="grad-text">Vsak avtobus, ob pravem času.</span></h1>
+          <p class="lead reveal">Poišči povezavo med postajami, preveri odhode v živo in shrani priljubljene relacije. Hitro, pregledno in tudi brez interneta.</p>
+          <div class="hero-actions reveal">
+            <div class="dl">
+              <a class="btn btn-lg btn-primary" href="Vozni-red.apk" download>
+                <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>
+                Prenesi APK
+              </a>
+              <p class="dl-meta">Različica 1.1 · ~80 KB · Android 7.0+</p>
+            </div>
+            <a class="btn btn-lg btn-ghost" href="#namestitev">Kako namestiti <span aria-hidden="true">→</span></a>
+          </div>
+          <ul class="hero-points reveal" aria-label="Na kratko">
+            <li>Brez registracije</li>
+            <li>Brez oglasov</li>
+            <li>Deluje brez povezave</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual reveal">
+          <div class="float-chip chip-a" aria-hidden="true">
+            <span class="badge l-6">6</span>
+            <span><strong>čez 3 min</strong><br><small>Peron 2</small></span>
+          </div>
+          <div class="float-chip chip-b" aria-hidden="true">
+            <span class="live-dot"></span>
+            <span><strong>V živo</strong><br><small>+2 min zamude</small></span>
+          </div>
+
+          <figure class="phone" aria-label="Predogled aplikacije: iskanje povezave od Glavnega trga do Vzpenjače Pohorje">
+            <div class="phone-frame">
+              <div class="phone-screen" aria-hidden="true">
+                <div class="app-hero">
+                  <div class="status">
+                    <span>9:41</span>
+                    <span class="status-ic">
+                      <i class="sig"></i><i class="wifi"></i><i class="bat"></i>
+                    </span>
+                  </div>
+                  <div class="app-top">
+                    <span class="app-hi">Dober dan</span>
+                    <span class="app-avatar">
+                      <svg viewBox="0 0 24 24"><path d="M20 15.5A8 8 0 1 1 8.5 4a6.5 6.5 0 0 0 11.5 11.5Z" fill="currentColor"/></svg>
+                    </span>
+                  </div>
+                  <p class="app-title">Kam greš danes?</p>
+                  <div class="app-form">
+                    <div class="field">
+                      <span class="pin pin-from"></span>
+                      <span><small>Od</small>Glavni trg</span>
+                    </div>
+                    <div class="field-sep"><span class="swap">⇅</span></div>
+                    <div class="field">
+                      <span class="pin pin-to"></span>
+                      <span><small>Do</small>Vzpenjača Pohorje</span>
+                    </div>
+                    <div class="app-search">Poišči povezave</div>
+                  </div>
+                </div>
+                <div class="app-body">
+                  <div class="app-section">
+                    <span>Naslednji odhodi</span>
+                    <span class="pill">Delavnik</span>
+                  </div>
+                  <div class="trip">
+                    <span class="badge l-6">6</span>
+                    <div class="trip-main">
+                      <strong>14:32 → 14:51</strong>
+                      <small>Direktno · 19 min</small>
+                    </div>
+                    <span class="trip-eta">3 min</span>
+                  </div>
+                  <div class="trip">
+                    <span class="badge l-18">18</span>
+                    <div class="trip-main">
+                      <strong>14:40 → 15:04</strong>
+                      <small>1 prestop · 24 min</small>
+                    </div>
+                    <span class="trip-eta muted">11 min</span>
+                  </div>
+                  <div class="trip">
+                    <span class="badge l-3">3</span>
+                    <div class="trip-main">
+                      <strong>14:55 → 15:16</strong>
+                      <small>Direktno · 21 min</small>
+                    </div>
+                    <span class="trip-eta muted">26 min</span>
+                  </div>
+                  <div class="app-tabs">
+                    <span class="on"><i></i>Iskanje</span>
+                    <span><i></i>Odhodi</span>
+                    <span><i></i>Vozovnice</span>
+                    <span><i></i>Priljubljene</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="section" id="funkcije" aria-labelledby="funkcije-naslov">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <p class="kicker">Funkcije</p>
+          <h2 id="funkcije-naslov">Vse za vožnjo po mestu, na enem mestu.</h2>
+          <p class="section-lead">Zasnovano za hitre poglede na postaji in mirno načrtovanje doma.</p>
+        </div>
+
+        <ul class="features">
+          <li class="card feature reveal">
+            <span class="f-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a3.5 3.5 0 0 1 0 7h-4a3.5 3.5 0 0 0 0 7h5.5"/></svg>
+            </span>
+            <h3>Iskanje povezav</h3>
+            <p>Izberi začetno in ciljno postajo, aplikacija pa najde najhitrejše poti – tudi s prestopi.</p>
+          </li>
+          <li class="card feature reveal">
+            <span class="f-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2"/></svg>
+            </span>
+            <h3>Vozni red za vsak dan</h3>
+            <p>Ločeni vozni redi za delavnike, sobote ter nedelje in praznike. Brez ugibanja.</p>
+          </li>
+          <li class="card feature reveal">
+            <span class="f-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2.5"/><path d="M7 9.5h4M7 12.5h7M16 9.5h1M9 20h6M12 17v3"/></svg>
+            </span>
+            <h3>Odhodi v živo</h3>
+            <p>Prikazovalnik s postaje: kdaj pride naslednji avtobus, s katerega perona in s kakšno zamudo.</p>
+          </li>
+          <li class="card feature reveal">
+            <span class="f-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m9 4-5 2v14l5-2 6 2 5-2V4l-5 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+            </span>
+            <h3>Pot na zemljevidu</h3>
+            <p>Podrobnosti vožnje z vsemi vmesnimi postajami in potjo avtobusa, narisano na zemljevidu.</p>
+          </li>
+          <li class="card feature reveal">
+            <span class="f-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM18 14h2M14 18v2"/></svg>
+            </span>
+            <h3>Demo vozovnice s QR kodo</h3>
+            <p>Preizkusi, kako bi delovala mobilna vozovnica – s QR kodo in odštevanjem veljavnosti.</p>
+          </li>
+          <li class="card feature reveal">
+            <span class="f-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></svg>
+            </span>
+            <h3>Priljubljene relacije</h3>
+            <p>Pot v službo ali šolo shraniš z enim dotikom in jo odpreš takoj ob zagonu.</p>
+          </li>
+        </ul>
+
+        <div class="extras reveal">
+          <div class="extra">
+            <span class="extra-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg></span>
+            <div><strong>Svetla in temna tema</strong><span>Prilagodi se nastavitvam telefona.</span></div>
+          </div>
+          <div class="extra">
+            <span class="extra-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3l18 18M8.5 8.8A9 9 0 0 0 5 11M2 8a14 14 0 0 1 4-2.6M12 18.5h.01M9.2 15.3a4 4 0 0 1 5.6 0M14.8 9.4A9 9 0 0 1 19 11M17.5 5.8A14 14 0 0 1 22 8"/></svg></span>
+            <div><strong>Deluje brez interneta</strong><span>Vozni redi so shranjeni v telefonu.</span></div>
+          </div>
+          <div class="extra">
+            <span class="extra-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"/></svg></span>
+            <div><strong>Lahka kot pero</strong><span>Le približno 80 KB.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSTALL -->
+    <section class="section section-tint" id="namestitev" aria-labelledby="namestitev-naslov">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <p class="kicker">Namestitev</p>
+          <h2 id="namestitev-naslov">Kako namestiti v štirih korakih</h2>
+          <p class="section-lead">Aplikacija ni v trgovini Google Play, zato jo namestiš neposredno iz datoteke APK. Traja manj kot minuto.</p>
+        </div>
+
+        <ol class="steps">
+          <li class="card step reveal">
+            <span class="step-n" aria-hidden="true">1</span>
+            <h3>Prenesi datoteko</h3>
+            <p>Na telefonu tapni <a href="Vozni-red.apk" download>Prenesi APK</a>. Datoteka <code>Vozni-red.apk</code> se shrani med prenose.</p>
+          </li>
+          <li class="card step reveal">
+            <span class="step-n" aria-hidden="true">2</span>
+            <h3>Odpri datoteko</h3>
+            <p>Ko se prenos konča, tapni obvestilo ali odpri aplikacijo <em>Datoteke</em> → <em>Prenosi</em> in izberi datoteko.</p>
+          </li>
+          <li class="card step reveal">
+            <span class="step-n" aria-hidden="true">3</span>
+            <h3>Dovoli nameščanje</h3>
+            <p>Če te telefon vpraša, v nastavitvah za brskalnik ali Datoteke vklopi <em>Dovoli iz tega vira</em> (nameščanje iz neznanih virov).</p>
+          </li>
+          <li class="card step reveal">
+            <span class="step-n" aria-hidden="true">4</span>
+            <h3>Tapni »Namesti«</h3>
+            <p>Potrdi namestitev in počakaj nekaj sekund. Aplikacija se prikaže med ostalimi na začetnem zaslonu.</p>
+          </li>
+        </ol>
+
+        <aside class="note reveal" aria-labelledby="note-naslov">
+          <span class="note-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="M12 8.5v4M12 15.5h.01"/></svg>
+          </span>
+          <div>
+            <h3 id="note-naslov">Opozorilo Google Play Protect</h3>
+            <p>Ker aplikacija ni objavljena v Google Play, jo Play Protect morda ne prepozna in prikaže opozorilo. To je običajno za vse aplikacije, nameščene mimo trgovine – ne pomeni, da je bila najdena težava. Če zaupaš viru, izberi <em>Več podrobnosti</em> → <em>Vseeno namesti</em>. Če nisi prepričan, namestitev raje prekliči.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- OPEN ON PHONE -->
+    <section class="section" id="telefon" aria-labelledby="telefon-naslov">
+      <div class="wrap">
+        <div class="cta-panel reveal">
+          <div class="cta-copy">
+            <p class="kicker kicker-light">Si na računalniku?</p>
+            <h2 id="telefon-naslov">Odpri to stran na telefonu</h2>
+            <p>APK namestiš na telefonu. Kopiraj povezavo do te strani in jo pošlji sebi – po e-pošti, v klepetu ali prek zapiskov – nato jo odpri v brskalniku na telefonu in tapni <strong>Prenesi APK</strong>.</p>
+          </div>
+          <div class="cta-actions">
+            <div class="link-box">
+              <span class="link-url" id="page-url">to stran</span>
+              <button type="button" class="btn btn-light" id="copy-btn">
+                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <span class="copy-label">Kopiraj povezavo</span>
+              </button>
+            </div>
+            <p class="copy-status" id="copy-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="vprasanja" aria-labelledby="vprasanja-naslov">
+      <div class="wrap faq-grid">
+        <div class="section-head section-head-left reveal">
+          <p class="kicker">Vprašanja</p>
+          <h2 id="vprasanja-naslov">Pogosta vprašanja</h2>
+          <p class="section-lead">Kratki in pošteni odgovori.</p>
+        </div>
+        <div class="faq reveal">
+          <details>
+            <summary>Ali je aplikacija brezplačna?</summary>
+            <div class="faq-a"><p>Da, popolnoma. Ni naročnin, oglasov, plačil v aplikaciji ali registracije. Tudi vozovnice v aplikaciji so le demo in ne zaračunajo ničesar.</p></div>
+          </details>
+          <details>
+            <summary>Ali so podatki pravi?</summary>
+            <div class="faq-a"><p>Delno. Lokacije postaj so prave, linije in vozni redi pa so izmišljeni za predstavitev. Aplikacija je neuradna demo različica in ni povezana z mestnim prevoznikom, zato je ne uporabljaj za načrtovanje resničnih voženj.</p></div>
+          </details>
+          <details>
+            <summary>Zakaj ni v Google Play?</summary>
+            <div class="faq-a"><p>Gre za majhen neuraden demo projekt, zato je na voljo le kot datoteka APK za neposredno namestitev. Zato te telefon ob namestitvi vpraša za dovoljenje in morda prikaže opozorilo Play Protect.</p></div>
+          </details>
+          <details>
+            <summary>Ali deluje brez interneta?</summary>
+            <div class="faq-a"><p>Da. Postaje, linije in vozni redi so shranjeni v aplikaciji, zato iskanje povezav in pregled odhodov delujeta tudi brez mobilnih podatkov. Za prikaz podlage zemljevida je lahko potrebna povezava.</p></div>
+          </details>
+          <details>
+            <summary>Kako posodobim aplikacijo?</summary>
+            <div class="faq-a"><p>Ko izide nova različica, s te strani znova prenesi APK in ga namesti. Nova različica se namesti čez staro, tvoje priljubljene relacije pa ostanejo shranjene.</p></div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="section final" aria-labelledby="final-naslov">
+      <div class="wrap final-inner reveal">
+        <svg class="final-logo" aria-hidden="true"><use href="#logo"/></svg>
+        <h2 id="final-naslov">Pripravljen na pot?</h2>
+        <p class="section-lead">Prenesi aplikacijo in imej mestni vozni red vedno pri roki.</p>
+        <a class="btn btn-lg btn-primary" href="Vozni-red.apk" download>
+          <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>
+          Prenesi APK
+        </a>
+        <p class="dl-meta">Različica 1.1 · ~80 KB · Android 7.0+</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div class="brand brand-footer">
+        <svg class="brand-logo" aria-hidden="true"><use href="#logo"/></svg>
+        <span class="brand-name">Vozni red <strong>Maribor</strong></span>
+      </div>
+      <p class="footer-note">Neuradna brezplačna demo aplikacija. Lokacije postaj so prave, linije in vozni redi so izmišljeni. Ni povezana z Google Play ali mestnim prevoznikom.</p>
+      <p class="footer-copy">© <span id="leto">2026</span> Vozni red Maribor · <a href="#glava">Na vrh ↑</a></p>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
