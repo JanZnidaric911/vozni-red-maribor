@@ -159,10 +159,35 @@ function trips(dir, dt) {
 
 const isHubStop = id => !!(STATIONS[id] && STATIONS[id].hub);
 const peron = (dir, i) => { const s = dir.stops[i]; return isHubStop(s) ? 1 + hash(dir.key + s) % 12 : null; };
-function delayOf(id, k) {
-  const r = hash(id + k) % 100;
-  return r < 70 ? 0 : r < 93 ? 1 + r % 3 : 4 + r % 5;
+/* ================= Zamude =================
+   Simulirane, a dosledne: ista vožnja ima ves dan isto zamudo (hash vožnje + datuma).
+   V prometnih konicah so zamude pogostejše in večje. Velja samo za današnji dan. */
+const DELAY_REASONS = ['gost promet', 'dela na cesti', 'zastoj v križišču', 'veliko potnikov na postajah', 'zapora ceste', 'prometna nesreča', 'slabe vremenske razmere', 'tehnična okvara vozila'];
+const DELAY_LV = [
+  { cls: 'ok', name: 'Točno' },
+  { cls: 'l1', name: 'Rahla zamuda' },
+  { cls: 'l2', name: 'Zamuda' },
+  { cls: 'l3', name: 'Velika zamuda' },
+];
+const delayCache = {};
+function delayInfo(id, k) {
+  const key = id + '|' + k;
+  if (delayCache[key]) return delayCache[key];
+  if (k !== todayKey()) return (delayCache[key] = { min: 0, lv: 0 });
+  const start = +String(id).split('@')[1] || 0, wk = dayType(k) === 'wk';
+  const rush = wk && ((start >= 380 && start < 510) || (start >= 840 && start < 1050));
+  const r = hash(id + k) % 1000, r2 = hash(k + id) % 1000;
+  const pLate = rush ? 520 : 280;               // ‰ voženj z zamudo
+  let min = 0;
+  if (r < pLate) {
+    const x = r2 / 1000;
+    min = x < .55 ? 1 + Math.floor(x / .55 * 3) : x < .9 ? 4 + Math.floor((x - .55) / .35 * 6) : 10 + Math.floor((x - .9) / .1 * 9);
+  }
+  const lv = min === 0 ? 0 : min <= 3 ? 1 : min <= 9 ? 2 : 3;
+  return (delayCache[key] = { min, lv, reason: lv >= 2 ? DELAY_REASONS[hash(id) % DELAY_REASONS.length] : '' });
 }
+const delayOf = (id, k) => delayInfo(id, k).min;
+const delayTxt = d => d.lv === 0 ? 'Točno' : `${DELAY_LV[d.lv].name} +${d.min} min`;
 
 function mkLeg(dir, i, j, start) {
   return { dir, i, j, start, dep: start + dir.off[i], arr: start + dir.off[j], id: dir.key + '@' + start };
@@ -343,13 +368,44 @@ const kmFmt = v => v < 10 ? v.toFixed(1).replace('.', ',') + ' km' : Math.round(
 
 function connStatus(c, k) {
   if (k !== todayKey()) return null;
-  const n = nowMin(), delay = delayOf(c.legs[0].id, k), dep = c.dep + delay, diff = dep - n;
-  if (dep < n - 1) return { cls: 'gone', txt: 'Odpeljal' };
-  if (diff <= 60) {
-    if (delay) return { cls: 'warn', txt: `+${delay} min · čez ${Math.max(0, diff)} min` };
-    return { cls: 'ok', txt: diff <= 0 ? 'Odhaja zdaj' : `čez ${diff} min` };
+  const n = nowMin(), d = delayInfo(c.legs[0].id, k), dep = c.dep + d.min, diff = dep - n;
+  if (dep < n - 1) return { cls: 'gone', txt: 'Odpeljal', d };
+  if (diff <= 120) {
+    const when = diff <= 0 ? 'odhaja zdaj' : diff < 60 ? `čez ${diff} min` : `ob ${fmt(dep)}`;
+    if (d.lv) return { cls: 'lv' + d.lv, txt: `+${d.min} min · ${when}`, d, late: true };
+    return { cls: 'ok', txt: diff <= 0 ? 'Odhaja zdaj' : `Točno · ${when}`, d };
   }
   return null;
+}
+/* zamude, ki vplivajo na celotno povezavo (tudi zamujeni prestopi) */
+function connDelays(c, k) {
+  const out = c.legs.map(l => ({ l, d: delayInfo(l.id, k) }));
+  out.forEach((x, i) => {
+    const nx = out[i + 1];
+    if (nx) {
+      const arrive = x.l.arr + x.d.min, leave = nx.l.dep + nx.d.min;
+      x.missTransfer = arrive > leave - 1;   // manj kot minuta za prestop
+      x.slack = leave - arrive;
+    }
+  });
+  return out;
+}
+/* vse vožnje, ki ta trenutek vozijo ali odpeljejo v naslednji uri */
+function liveTrips() {
+  const k = todayKey(), n = nowMin(), dt = dayType(k), out = [];
+  DIRS.forEach(dir => {
+    const dur = dir.off[dir.off.length - 1];
+    trips(dir, dt).forEach(s => {
+      const id = dir.key + '@' + s, d = delayInfo(id, k);
+      const start = s + d.min, end = s + dur + d.min;
+      if (end < n || start > n + 60) return;
+      // trenutna / naslednja postaja
+      let at = 0;
+      for (let i = 0; i < dir.stops.length; i++) if (s + dir.off[i] + d.min <= n) at = i;
+      out.push({ dir, s, id, d, running: start <= n, at });
+    });
+  });
+  return out;
 }
 
 /* ---- ilustracije ---- */
@@ -508,11 +564,12 @@ SCREENS.home = () => {
   const nx = nextUp(S.from, S.to);
   let nextHtml = '';
   if (nx) {
-    const k = todayKey(), delay = delayOf(nx.legs[0].id, k), diff = Math.max(0, nx.dep + delay - nowMin());
-    nextHtml = `<button class="next-card" data-a="opennext">
+    const k = todayKey(), dd = delayInfo(nx.legs[0].id, k), delay = dd.min, diff = Math.max(0, nx.dep + delay - nowMin());
+    const ad = delayOf(nx.legs[nx.legs.length - 1].id, k);
+    nextHtml = `<button class="next-card ${dd.lv ? 'lv' + dd.lv : ''}" data-a="opennext">
       <span class="eta ${diff <= 2 ? 'now' : ''}">${diff <= 2 ? '<b style="font-size:calc(15px * var(--fs))">zdaj</b>' : diff < 100 ? `<b>${diff}</b><small>min</small>` : `<b style="font-size:calc(16px * var(--fs))">${fmt(nx.dep)}</b>`}</span>
-      <span class="tx"><small>Naslednji avtobus${delay ? ` · <span style="color:var(--warn-fg);display:inline">+${delay} min</span>` : ''}</small>
-        <strong>${tm(nx.dep)} ${icon('arrow')} ${tm(nx.arr)}</strong>
+      <span class="tx"><small>Naslednji avtobus ${dchip(dd)}</small>
+        <strong>${delay ? `<s>${fmt(nx.dep)}</s> ` : ''}${tm(nx.dep + delay)} ${icon('arrow')} ${tm(nx.arr + ad)}</strong>
         <span>${nx.legs.map(l => badge(l.dir.line)).join('')}<span class="meta">&nbsp;${durFmt(nx.dur)}${nx.transfers ? ' · ' + nx.transfers + ' ' + plural(nx.transfers, 'prestop', 'prestopa', 'prestopi', 'prestopov') : ''}</span></span></span>
       ${icon('chev')}</button>`;
   }
@@ -550,6 +607,7 @@ SCREENS.home = () => {
   </section>
   ${freqHtml()}
   ${nextHtml ? `<div style="padding:${loggedIn() && freqRoutes(1).length ? '12px' : '0'} 16px 0">${nextHtml}</div>` : ''}
+  ${trafficHtml()}
 
   ${D.favs.length ? `<section class="section"><div class="section-head"><h2>Priljubljene relacije</h2><button data-a="tab" data-t="favs">Vse</button></div>
     <div class="route-list">${D.favs.slice(0, 3).map((r, i) => routeItem(r, i, 'fav')).join('')}</div></section>` : ''}
@@ -596,7 +654,10 @@ function resultsBody() {
   <div class="summary"><span><b>${list.length}</b> ${plural(list.length, 'povezava', 'povezavi', 'povezave', 'povezav')} · ${direct} ${plural(direct, 'neposredna', 'neposredni', 'neposredne', 'neposrednih')}</span><span>od <b>${eur(Math.min(...list.map(c => c.price)))}</b></span></div>
   <div class="conn-list">${list.map((c, i) => {
     const st = connStatus(c, S.date);
-    const past = S.date === t && c.dep < nowMin() - 1 && S.sort === 'dep';
+    const dl = S.date === t ? connDelays(c, t) : null;
+    const dDep = dl ? dl[0].d : { min: 0, lv: 0 }, dArr = dl ? dl[dl.length - 1].d : { min: 0, lv: 0 };
+    const miss = dl && dl.some(x => x.missTransfer);
+    const past = S.date === t && c.dep + dDep.min < nowMin() - 1 && S.sort === 'dep';
     const legs = c.legs.map(l => badge(l.dir.line)).join(icon('chev'));
     const via = c.transfers
       ? `<span class="xchip">${icon('transfer')}<span class="nm">${c.legs.slice(0, -1).map(l => esc(stName(l.dir.stops[l.j]))).join(', ')}</span></span>`
@@ -604,11 +665,11 @@ function resultsBody() {
     return `<button class="conn ${past ? 'past' : ''} ${i === nextIdx ? 'next' : ''}" data-a="open" data-i="${i}" style="animation-delay:${Math.min(i, 8) * 30}ms">
       ${i === nextIdx ? `<span class="flag">${icon('clock')}Naslednji odhod</span>` : ''}
       <div class="conn-top">
-        <div class="times"><strong>${tm(c.dep)}</strong><span class="dur"><i></i>${durFmt(c.dur)}<i class="${c.transfers ? 'dash' : ''}"></i></span><strong>${tm(c.arr)}</strong></div>
+        <div class="times">${dDep.min && st && st.late ? `<strong class="dlt lv${dDep.lv}"><s>${fmt(c.dep)}</s>${tm(c.dep + dDep.min)}</strong>` : `<strong>${tm(c.dep)}</strong>`}<span class="dur"><i></i>${durFmt(c.dur)}<i class="${c.transfers ? 'dash' : ''}"></i></span>${dArr.min && st && st.cls !== 'gone' ? `<strong class="dlt lv${dArr.lv}"><s>${fmt(c.arr)}</s>${tm(c.arr + dArr.min)}</strong>` : `<strong>${tm(c.arr)}</strong>`}</div>
         <div class="price">${eur(c.price)}</div>
       </div>
       <div class="conn-bottom"><span class="legs">${legs}</span>${via}
-        ${st ? `<span class="pill ${st.cls}">${st.txt}</span>` : ''}</div>
+        ${miss && st && st.cls !== 'gone' ? `<span class="pill lv3">${icon('transfer')}Prestop ogrožen</span>` : st ? `<span class="pill ${st.cls}">${st.txt}</span>` : ''}</div>
     </button>`;
   }).join('')}</div>`;
 }
@@ -745,6 +806,8 @@ SCREENS.detail = () => {
   const first = c.legs[0], last = c.legs[c.legs.length - 1];
   const from = first.dir.stops[first.i], to = last.dir.stops[last.j];
   const delay = k === todayKey() ? delayOf(first.id, k) : 0;
+  const dls = k === todayKey() ? connDelays(c, k) : null;
+  const dArr = dls ? dls[dls.length - 1].d.min : 0;
   const amen = [...new Set(c.legs.flatMap(l => l.dir.line.amen))].filter(a => AMENITIES[a]);
   const st = connStatus(c, k);
   const distance = c.legs.reduce((s, l) => s + l.dir.kms[l.j] - l.dir.kms[l.i], 0);
@@ -754,12 +817,14 @@ SCREENS.detail = () => {
     const prev = c.legs[li - 1];
     const transfer = prev ? `<div class="transfer">${icon('transfer')}<span>Prestop: <b>${esc(stName(stops[0]))}</b>${prev.arr <= l.dep ? ' · ' + (l.dep - prev.arr) + ' min časa' : ''}</span></div>` : '';
     const pr = peron(l.dir, l.i);
+    const ld = dls && st && st.cls !== 'gone' ? dls[li].d : { min: 0, lv: 0 };
     return `${transfer}
     <div class="leg-head">${badge(line)}<div class="tx"><b>Smer ${esc(stName(l.dir.stops[l.dir.stops.length - 1]))}</b><span>${TYPE_LABEL[line.type] || 'mestna linija'} · ${stops.length - 1} ${plural(stops.length - 1, 'postaja', 'postaji', 'postaje', 'postaj')}</span></div>
       ${pr ? `<div class="peron"><small>Peron</small><b>${pr}</b></div>` : ''}</div>
     <ol class="timeline" style="--c:${line.color}">${stops.map((id, si) => {
       const end = si === 0 || si === stops.length - 1;
-      return `<li class="${end ? 'end' : ''}"><span class="tm">${tm(l.start + l.dir.off[l.i + si])}</span><span class="nd"><i></i></span>
+      const plan = l.start + l.dir.off[l.i + si];
+      return `<li class="${end ? 'end' : ''}"><span class="tm">${ld.min ? `<b class="exp lv${ld.lv}">${tm(plan + ld.min)}</b><s>${fmt(plan)}</s>` : tm(plan)}</span><span class="nd"><i></i></span>
         <span class="st">${esc(stName(id))}${STATIONS[id].sub && end ? `<small>${esc(STATIONS[id].sub)}</small>` : ''}</span></li>`;
     }).join('')}</ol>`;
   }).join('');
@@ -771,17 +836,18 @@ SCREENS.detail = () => {
   </header>
   <section class="trip-hero">
     <div class="th-row">
-      <div><div class="t">${fmt(c.dep)}</div><div class="n">${esc(stName(from))}</div></div>
+      <div><div class="t">${fmt(c.dep + (st && st.cls !== 'gone' ? delay : 0))}</div>${delay && st && st.cls !== 'gone' ? `<div class="th-was">namesto ${fmt(c.dep)}</div>` : ''}<div class="n">${esc(stName(from))}</div></div>
       <div class="th-mid">${durFmt(c.dur)}<div class="ln">${icon('bus')}</div></div>
-      <div class="r"><div class="t">${fmt(c.arr)}</div><div class="n">${esc(stName(to))}</div></div>
+      <div class="r"><div class="t">${fmt(c.arr + (st && st.cls !== 'gone' ? dArr : 0))}</div>${dArr && st && st.cls !== 'gone' ? `<div class="th-was">namesto ${fmt(c.arr)}</div>` : ''}<div class="n">${esc(stName(to))}</div></div>
     </div>
     <div class="th-foot">
       <span>${c.transfers ? c.transfers + ' ' + plural(c.transfers, 'prestop', 'prestopa', 'prestopi', 'prestopov') : 'Brez prestopa'}</span>
       <span>${kmFmt(distance)}</span>
-      ${st ? `<span>${st.cls === 'gone' ? 'Že odpeljal' : delay ? `Zamuda +${delay} min` : 'Vozi točno'}</span>` : ''}
+      ${st ? `<span class="${st.d && st.d.lv ? 'th-late' : ''}">${st.cls === 'gone' ? 'Že odpeljal' : delayTxt(st.d)}</span>` : ''}
     </div>
     ${SET.speak && CAN_SPEAK ? `<button class="speak-btn" data-a="speak">${icon('speaker')}Preberi na glas</button>` : ''}
   </section>
+  ${delayBanner(c, dls, st)}
   <section class="card map">
     <div class="view-toggle"><h3>Pot</h3>
       <div class="segctl" role="tablist" aria-label="Pogled poti">
@@ -797,6 +863,18 @@ SCREENS.detail = () => {
     <button class="cta" data-a="buy">${icon('ticket')} Kupi vozovnico</button>
   </div>`;
 };
+
+function delayBanner(c, dls, st) {
+  if (!dls || !st || st.cls === 'gone') return '';
+  const late = dls.filter(x => x.d.lv), miss = dls.find(x => x.missTransfer);
+  if (!late.length && !miss) return `<section class="delay-card ok"><span class="dc-ic">${icon('clock')}</span><span class="tx"><b>Avtobus vozi točno</b><span>Po trenutnih podatkih ni zamud na tvoji poti.</span></span></section>`;
+  const worst = Math.max(...dls.map(x => x.d.lv), miss ? 3 : 0);
+  return `<section class="delay-card lv${worst}"><span class="dc-ic">${icon('clock')}</span><span class="tx">
+    ${late.map(x => `<b>Linija ${esc(x.l.dir.line.id)} ${x.d.lv === 3 ? 'močno ' : ''}zamuja ${x.d.min} min</b>
+      <span>${x.d.reason ? 'Razlog: ' + esc(x.d.reason) + ' · ' : ''}predviden odhod s postaje ${esc(stName(x.l.dir.stops[x.l.i]))} ob <b>${fmt(x.l.dep + x.d.min)}</b> namesto ${fmt(x.l.dep)}</span>`).join('')}
+    ${miss ? `<span class="dc-warn">${icon('transfer')}Zaradi zamude boš verjetno zamudil prestop na postaji <b>${esc(stName(miss.l.dir.stops[miss.l.j]))}</b>. Preveri kasnejšo povezavo.</span>` : ''}
+  </span></section>`;
+}
 
 SCREENS.board = () => {
   const st = STATIONS[S.boardStation] || STATIONS[HUB];
@@ -817,18 +895,19 @@ function clockText() {
 }
 function boardRows() {
   const k = todayKey(), n = nowMin();
-  const deps = departures(S.boardStation, k, n - 2, 30);
+  const exp = x => x.dep + delayOf(x.a.dir.key + '@' + x.s, k);
+  const deps = departures(S.boardStation, k, n - 20, 60).filter(x => exp(x) >= n - 1).sort((a, b) => exp(a) - exp(b)).slice(0, 30);
   if (!deps.length) return `<div class="empty"><h3>Danes ni več odhodov</h3><p>Prvi odhodi so jutri zjutraj.</p></div>`;
   return deps.map((x, i) => {
-    const dir = x.a.dir, delay = delayOf(dir.key + '@' + x.s, k), diff = x.dep + delay - n;
+    const dir = x.a.dir, dd = delayInfo(dir.key + '@' + x.s, k), delay = dd.min, diff = x.dep + delay - n;
     const dest = dir.stops[dir.stops.length - 1], via = dir.stops[x.a.i + 1];
     let info = via !== dest ? `prek ${esc(stName(via))}` : 'neposredno';
     let cls = '';
     if (diff <= 0) { info = 'odhaja'; cls = 'now'; }
-    else if (delay && diff <= 90) { info = `zamuda +${delay} min`; cls = 'late'; }
+    else if (delay) { info = `${dd.lv === 3 ? 'velika zamuda' : 'zamuda'} +${delay} min${dd.reason ? ' · ' + esc(dd.reason) : ''}`; cls = 'late lv' + dd.lv; }
     const eta = diff <= 0 ? 'zdaj' : diff < 60 ? diff + "'" : fmt(x.dep + delay);
     return `<button class="board-row" data-a="brow" data-k="${dir.key}" data-i="${x.a.i}" data-s="${x.s}" style="animation-delay:${Math.min(i, 12) * 25}ms">
-      <span class="bt">${fmt(x.dep)}</span><span>${badge(dir.line, true)}</span>
+      <span class="bt">${delay ? `<span class="bt-new lv${dd.lv}">${fmt(x.dep + delay)}</span><s>${fmt(x.dep)}</s>` : fmt(x.dep)}</span><span>${badge(dir.line, true)}</span>
       <span class="bd"><b>${esc(stName(dest))}</b><span class="${cls}">${info}</span></span>
       <span class="bp ${diff <= 1 ? 'now' : cls === 'late' ? 'late' : ''}">${eta}</span></button>`;
   }).join('');
@@ -1377,10 +1456,63 @@ function freqHtml() {
       const diff = nx ? Math.max(0, nx.dep + delayOf(nx.legs[0].id, k) - nowMin()) : null;
       return `<button class="freq-card" data-a="route" data-from="${r.from}" data-to="${r.to}">
         <span class="fc-top"><b>${esc(stName(r.from))}</b>${icon('arrow')}<b>${esc(stName(r.to))}</b></span>
-        <span class="fc-bot">${nx ? `${nx.legs.map(l => badge(l.dir.line, true)).join('')}<span>${diff <= 1 ? 'odhod zdaj' : diff < 100 ? 'čez ' + diff + ' min' : 'ob ' + fmt(nx.dep)}</span>` : '<span>danes ni več odhodov</span>'}<em>${r.c}×</em></span>
+        <span class="fc-bot">${nx ? `${nx.legs.map(l => badge(l.dir.line, true)).join('')}<span>${diff <= 1 ? 'odhod zdaj' : diff < 100 ? 'čez ' + diff + ' min' : 'ob ' + fmt(nx.dep)}</span>${delayOf(nx.legs[0].id, k) ? dchip(delayInfo(nx.legs[0].id, k)) : ''}` : '<span>danes ni več odhodov</span>'}<em>${r.c}×</em></span>
       </button>`;
     }).join('')}</div></section>`;
 }
+
+/* --- stanje prometa in zamude --- */
+const zamuja = n => n % 100 === 1 ? 'zamuja' : n % 100 === 2 ? 'zamujata' : n % 100 === 3 || n % 100 === 4 ? 'zamujajo' : 'zamuja';
+const dchip = d => d.lv ? `<span class="dchip lv${d.lv}">+${d.min} min</span>` : `<span class="dchip ok">točno</span>`;
+function tripRow(x) {
+  const dir = x.dir, dest = dir.stops[dir.stops.length - 1];
+  const where = x.running ? `pri postaji ${esc(stName(dir.stops[x.at]))}` : `odhod ob ${fmt(x.s + x.d.min)} · ${esc(stName(dir.stops[0]))}`;
+  return `<button class="trip-row" data-a="brow" data-k="${dir.key}" data-i="${x.at}" data-s="${x.s}">
+    ${badge(dir.line, true)}<span class="tx"><b>Smer ${esc(stName(dest))}</b><span>${x.running ? '<i class="live-dot sm"></i>' : ''}${where}${x.d.reason ? ' · ' + esc(x.d.reason) : ''}</span></span>${dchip(x.d)}</button>`;
+}
+function trafficHtml() {
+  const live = liveTrips();
+  if (!live.length) return '';
+  const run = live.filter(x => x.running).length, late = live.filter(x => x.d.lv >= 1).sort((a, b) => b.d.min - a.d.min);
+  const big = late.filter(x => x.d.lv >= 2);
+  const top = (big.length ? big : late).slice(0, 3);
+  return `<section class="section"><div class="traffic">
+    <button class="tr-head" data-a="delays">
+      <span class="tr-ic">${late.length ? icon('clock') : icon('cloud')}</span>
+      <span class="tx"><b><i class="live-dot"></i>Stanje prometa</b>
+        <span>${run} ${plural(run, 'avtobus vozi', 'avtobusa vozita', 'avtobusi vozijo', 'avtobusov vozi')} · ${late.length ? `<em class="${big.length ? 'warn' : ''}">${late.length} od ${live.length} voženj ${zamuja(late.length)}</em>` : 'vsi točno'}</span></span>
+      ${icon('chev')}</button>
+    ${top.length ? `<div class="tr-list">${top.map(tripRow).join('')}</div>` : `<p class="tr-ok">${icon('spark')}Vsi avtobusi vozijo po voznem redu.</p>`}
+  </div></section>`;
+}
+S.dfilter = 'all';
+SCREENS.delays = () => {
+  const live = liveTrips(), run = live.filter(x => x.running).length;
+  const late = live.filter(x => x.d.lv >= 1), onTime = live.length - late.length;
+  const pct = live.length ? Math.round(onTime / live.length * 100) : 100;
+  const maxD = late.reduce((m, x) => Math.max(m, x.d.min), 0);
+  let list = live.slice().sort((a, b) => b.d.min - a.d.min || (a.s + a.dir.off[a.at]) - (b.s + b.dir.off[b.at]));
+  if (S.dfilter === 'late') list = list.filter(x => x.d.lv >= 1);
+  if (S.dfilter === 'big') list = list.filter(x => x.d.lv >= 2);
+  return `<header class="topbar">
+      <button class="round-btn" data-a="back" aria-label="Nazaj">${icon('back')}</button>
+      <div class="ttl"><h2>Zamude v živo</h2><p><i class="live-dot sm"></i>Posodobljeno ob ${fmt(nowMin())} · naslednja ura</p></div>
+    </header>
+    <div class="set-card how dstats">
+      <div><b>${run}</b><span>${plural(run, 'vozi', 'vozita', 'vozijo', 'vozi')} zdaj</span></div>
+      <div><b class="okc">${pct} %</b><span>točnih</span></div>
+      <div><b class="${late.length ? 'latec' : ''}">${late.length}</b><span>${zamuja(late.length)}</span></div>
+      <div><b class="${maxD >= 10 ? 'latec' : ''}">${maxD ? '+' + maxD : '0'}</b><span>največja (min)</span></div>
+    </div>
+    <div class="filters" style="padding-top:12px">
+      <button class="chip ${S.dfilter === 'all' ? 'on' : ''}" data-a="dfilter" data-v="all">Vsi (${live.length})</button>
+      <button class="chip ${S.dfilter === 'late' ? 'on' : ''}" data-a="dfilter" data-v="late">Zamujajo (${late.length})</button>
+      <button class="chip ${S.dfilter === 'big' ? 'on' : ''}" data-a="dfilter" data-v="big">Nad 3 min (${live.filter(x => x.d.lv >= 2).length})</button>
+    </div>
+    <div class="legend-row"><span class="dchip ok">točno</span><span class="dchip lv1">do 3 min</span><span class="dchip lv2">4–9 min</span><span class="dchip lv3">10+ min</span></div>
+    ${list.length ? `<div class="trip-list">${list.map(tripRow).join('')}</div>` : `<div class="empty"><div class="em-ic">${icon('spark')}</div><h3>Ni zamud</h3><p>V tem trenutku vsi avtobusi vozijo po voznem redu.</p></div>`}
+    <p class="set-foot">Zamude so ocena na podlagi prometa (demo podatki).</p>`;
+};
 
 /* --- profil --- */
 const agoText = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'pravkar' : m < 60 ? 'pred ' + m + ' min' : m < 1440 ? 'pred ' + Math.round(m / 60) + ' h' : 'pred ' + Math.round(m / 1440) + ' dnevi'; };
@@ -1796,6 +1928,8 @@ const A = {
     mount3d();
   },
   speak: () => speakTrip(),
+  delays: () => push('delays'),
+  dfilter: el => { S.dfilter = el.dataset.v; const v = views.firstElementChild, y = v.scrollTop; render('none'); views.firstElementChild.scrollTop = y; },
 
   /* račun */
   signupstart: () => {
@@ -1882,7 +2016,7 @@ if (!D.onboarded) openOnboard();
 setTimeout(() => { if (window.Map3D) window.Map3D.preload(); }, 2500);
 setInterval(() => {
   if (current() === 'results' && S.date === todayKey() && !sheet.classList.contains('open')) { saveScroll(); const y = scrolls['home:results']; render('none'); views.firstElementChild.scrollTop = y; }
-  else if (current() === 'home' && !sheet.classList.contains('open')) { const v = views.firstElementChild, y = v.scrollTop; render('none'); views.firstElementChild.scrollTop = y; }
+  else if ((current() === 'home' || current() === 'delays') && !sheet.classList.contains('open')) { const v = views.firstElementChild, y = v.scrollTop; render('none'); views.firstElementChild.scrollTop = y; }
 }, 60000);
 if (window.matchMedia) {
   const mq = matchMedia('(prefers-color-scheme: dark)');
@@ -1928,5 +2062,5 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 // za razvoj/teste
-window.__vr = { search, departures, trips, DIRS, S, upd: { check: () => { updLast = 0; return checkForUpdate(); }, pending: () => updPending } };
+window.__vr = { search, departures, trips, DIRS, S, delayInfo, liveTrips, upd: { check: () => { updLast = 0; return checkForUpdate(); }, pending: () => updPending } };
 })();

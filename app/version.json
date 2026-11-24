@@ -1,8 +1,8 @@
 {
-    "build":  "20261124-091035",
+    "build":  "20261124-092122",
     "version":  "1.5",
     "apk":  6,
     "apkUrl":  "https://janznidaric911.github.io/vozni-red-maribor/",
     "apkNote":  "",
-    "opis":  "Odstranjen sistem točk"
+    "opis":  "Sistem zamud v živo"
 }

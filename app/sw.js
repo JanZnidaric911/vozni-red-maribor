@@ -1,9 +1,9 @@
 /* Service worker: vedno najprej sveže datoteke s spleta (samodejne posodobitve),
-   brez interneta pa zadnja shranjena kopija. Oznako 20261124-091035 zamenja skripta objavi.ps1. */
-const BUILD = '20261124-091035';
+   brez interneta pa zadnja shranjena kopija. Oznako 20261124-092122 zamenja skripta objavi.ps1. */
+const BUILD = '20261124-092122';
 const CACHE = 'voznired-' + BUILD;
 const CORE = ['./', 'index.html', 'manifest.webmanifest',
-  'css/style.css', 'css/extra.css', 'css/account.css', 'css/maps.css',
+  'css/style.css', 'css/extra.css', 'css/account.css', 'css/maps.css', 'css/delays.css',
   'js/build.js', 'js/config.js', 'js/data.js', 'js/roads.js', 'js/route3d.js', 'js/map3d.js', 'js/stopmap.js', 'js/avatar.js', 'js/account.js', 'js/app.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 

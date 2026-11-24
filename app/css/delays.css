@@ -1,0 +1,107 @@
+/* =====================================================================
+   Zamude: stopnje, stanje prometa, opozorila
+   ===================================================================== */
+:root {
+  --d1-bg: #FFF4D6; --d1-fg: #8A5A00;
+  --d2-bg: #FFE6D5; --d2-fg: #B4400C;
+  --d3-bg: #FDE0E0; --d3-fg: #B3121F;
+  --live: #16A34A;
+}
+:root[data-dark="1"] {
+  --d1-bg: #33260A; --d1-fg: #FFC94D;
+  --d2-bg: #3A1E0D; --d2-fg: #FF9A5C;
+  --d3-bg: #3D0F12; --d3-fg: #FF7A7A;
+  --live: #4ADE80;
+}
+
+/* oznake stopenj */
+.dchip { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 99px; font-size: calc(11.5px * var(--fs)); font-weight: 800; white-space: nowrap; flex: none; }
+.dchip.ok { background: var(--ok-bg); color: var(--ok-fg); }
+.dchip.lv1 { background: var(--d1-bg); color: var(--d1-fg); }
+.dchip.lv2 { background: var(--d2-bg); color: var(--d2-fg); }
+.dchip.lv3 { background: var(--d3-bg); color: var(--d3-fg); box-shadow: inset 0 0 0 1.5px currentColor; }
+.pill.lv1 { background: var(--d1-bg); color: var(--d1-fg); }
+.pill.lv2 { background: var(--d2-bg); color: var(--d2-fg); }
+.pill.lv3 { background: var(--d3-bg); color: var(--d3-fg); }
+.pill svg { width: 13px; height: 13px; margin-right: 3px; vertical-align: -2px; }
+
+/* utripajoča pika "v živo" */
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--live); margin-right: 7px; vertical-align: 1px; box-shadow: 0 0 0 0 var(--live); animation: livePulse 1.8s ease-out infinite; }
+.live-dot.sm { width: 6px; height: 6px; margin-right: 5px; }
+@keyframes livePulse { 0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, .55); } 100% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); } }
+
+/* rezultati: predviden in prečrtan čas */
+.times strong.dlt { display: grid; line-height: 1.05; }
+.times strong.dlt s { font-size: .5em; font-weight: 700; color: var(--faint); letter-spacing: 0; }
+.times strong.dlt.lv1 { color: var(--d1-fg); }
+.times strong.dlt.lv2 { color: var(--d2-fg); }
+.times strong.dlt.lv3 { color: var(--d3-fg); }
+
+/* naslednji avtobus */
+.next-card .dchip { margin-left: 4px; vertical-align: 1px; }
+.next-card strong s { font-size: .7em; color: var(--faint); font-weight: 700; }
+.next-card.lv2 .eta, .next-card.lv3 .eta { background: var(--d2-bg); color: var(--d2-fg); }
+.next-card.lv3 .eta { background: var(--d3-bg); color: var(--d3-fg); }
+.fc-bot .dchip { margin-left: 2px; }
+
+/* stanje prometa na glavnem zaslonu */
+.traffic { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow-sm), 0 0 0 1px var(--line); overflow: hidden; }
+.tr-head { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 14px 12px 14px; }
+.tr-ic { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--primary-soft); color: var(--on-soft); flex: none; }
+.tr-head .tx { flex: 1; min-width: 0; }
+.tr-head b { display: flex; align-items: center; font-size: calc(15.5px * var(--fs)); font-weight: 800; }
+.tr-head .tx > span { display: block; font-size: calc(12.5px * var(--fs)); color: var(--muted); margin-top: 2px; }
+.tr-head em { font-style: normal; font-weight: 800; color: var(--d1-fg); }
+.tr-head em.warn { color: var(--d3-fg); }
+.tr-head > svg:last-child { color: var(--faint); }
+.tr-list { border-top: 1px solid var(--line); }
+.tr-ok { display: flex; align-items: center; gap: 8px; padding: 0 16px 14px; font-size: calc(13px * var(--fs)); color: var(--ok-fg); font-weight: 600; }
+.tr-ok svg { width: 16px; height: 16px; }
+.trip-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 11px 14px; min-height: 56px; }
+.trip-row + .trip-row { border-top: 1px solid var(--line); }
+.trip-row .tx { flex: 1; min-width: 0; }
+.trip-row .tx b { display: block; font-size: calc(14px * var(--fs)); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trip-row .tx span { display: block; font-size: calc(12px * var(--fs)); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.trip-row:active { background: var(--surface-2); }
+
+/* zaslon zamud */
+.dstats { grid-template-columns: repeat(4, 1fr); margin-top: 4px; }
+.dstats div { text-align: center; padding: 12px 6px; }
+.dstats b { font-size: calc(19px * var(--fs)); }
+.dstats b.okc { color: var(--ok-fg); }
+.dstats b.latec { color: var(--d3-fg); }
+.legend-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 10px; }
+.trip-list { margin: 0 16px; background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-sm), 0 0 0 1px var(--line); overflow: hidden; }
+
+/* podrobnosti: pas z zamudo */
+.delay-card { display: flex; gap: 12px; margin: 12px 16px 0; padding: 14px 16px; border-radius: 20px; }
+.delay-card .dc-ic { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; flex: none; background: rgba(255, 255, 255, .55); }
+.delay-card .tx { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.delay-card .tx > b { font-size: calc(15px * var(--fs)); font-weight: 800; }
+.delay-card .tx > span { font-size: calc(12.5px * var(--fs)); line-height: 1.45; opacity: .92; }
+.delay-card.ok { background: var(--ok-bg); color: var(--ok-fg); }
+.delay-card.lv1 { background: var(--d1-bg); color: var(--d1-fg); }
+.delay-card.lv2 { background: var(--d2-bg); color: var(--d2-fg); }
+.delay-card.lv3 { background: var(--d3-bg); color: var(--d3-fg); }
+:root[data-dark="1"] .delay-card .dc-ic { background: rgba(255, 255, 255, .08); }
+.dc-warn { display: flex; gap: 8px; align-items: flex-start; margin-top: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .6); font-size: calc(13px * var(--fs)); font-weight: 600; line-height: 1.4; }
+:root[data-dark="1"] .dc-warn { background: rgba(0, 0, 0, .25); }
+.dc-warn svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.th-was { font-size: calc(11.5px * var(--fs)); opacity: .75; text-decoration: line-through; margin-top: 2px; }
+.th-foot .th-late { background: rgba(255, 220, 120, .28); }
+
+/* časovnica: predviden in načrtovan čas */
+.timeline .tm { display: grid; line-height: 1.1; }
+.timeline .tm b.exp { font-weight: 800; }
+.timeline .tm b.exp.lv1 { color: var(--d1-fg); }
+.timeline .tm b.exp.lv2 { color: var(--d2-fg); }
+.timeline .tm b.exp.lv3 { color: var(--d3-fg); }
+.timeline .tm s { font-size: .78em; color: var(--faint); font-weight: 600; }
+
+/* tabla odhodov */
+.board-row .bt { display: grid; line-height: 1.05; }
+.board-row .bt s { font-size: .62em; color: var(--board-dim); }
+.board-row .bt-new.lv1 { color: #FFD166; }
+.board-row .bt-new.lv2 { color: #FFA05C; }
+.board-row .bt-new.lv3 { color: #FF7A6E; }
+.board-row .bd span.late.lv3 { color: #FF7A6E; font-weight: 700; }
