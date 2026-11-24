@@ -130,7 +130,7 @@
     if (s) { try { await fetch(URL0 + '/auth/v1/logout', { method: 'POST', headers: { apikey: KEY, Authorization: 'Bearer ' + s.access_token } }); } catch (e) {} }
   };
 
-  const blank = () => ({ name: '', avatar: null, points: 0, lifetime: 0, data: { recents: [], routeCounts: {}, favs: [], tickets: [], history: [], purchases: 0 } });
+  const blank = () => ({ name: '', avatar: null, data: { recents: [], routeCounts: {}, favs: [], tickets: [] } });
 
   /* Prenese profil (ali ga ustvari ob prvi prijavi) */
   Acc.load = async seed => {
@@ -163,7 +163,7 @@
   async function push(now) {
     if (!Acc.loggedIn || !Acc.profile) return;
     const p = Acc.profile;
-    const body = { id: Acc.user.id, name: p.name, avatar: p.avatar, points: p.points | 0, lifetime: p.lifetime | 0, data: p.data, updated_at: new Date().toISOString() };
+    const body = { id: Acc.user.id, name: p.name, avatar: p.avatar, data: p.data, updated_at: new Date().toISOString() };
     const r = await req('/rest/v1/profiles', { method: 'POST', auth: true, body, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } });
     if (r.ok) { dirty = false; Acc.error = null; Acc.lastSync = Date.now(); }
     else { dirty = true; Acc.error = r.status ? 'Shranjevanje ni uspelo (' + r.status + ').' : 'Ni povezave – shranim, ko bo internet na voljo.'; }

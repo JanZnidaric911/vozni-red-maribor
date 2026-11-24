@@ -1328,40 +1328,11 @@ function speakTrip() {
 }
 function haptic() { if (SET.vibrate && CAN_VIBRATE) { try { navigator.vibrate(8); } catch (e) {} } }
 
-/* ================= Račun, točke, avatar ================= */
+/* ================= Račun in avatar ================= */
 const HAS_ACC = typeof window.Acc !== 'undefined';
 const loggedIn = () => HAS_ACC && Acc.loggedIn && !!Acc.profile;
 const AV = window.Avatar;
-const TIERS = [
-  { id: 'bron', name: 'Bron', min: 0, mult: 1, c: '#C98B4B' },
-  { id: 'srebro', name: 'Srebro', min: 300, mult: 1.25, c: '#8E9AA8' },
-  { id: 'zlato', name: 'Zlato', min: 800, mult: 1.5, c: '#D99A16' },
-];
-const REWARDS = [
-  { id: 'r20', cost: 100, pct: .2, label: '20 % popusta', desc: 'na eno vozovnico' },
-  { id: 'r50', cost: 200, pct: .5, label: '50 % popusta', desc: 'na eno vozovnico' },
-  { id: 'free', cost: 300, pct: 1, label: 'Brezplačna vožnja', desc: 'ena vozovnica zastonj' },
-];
-const tierOf = lt => TIERS.filter(t => (lt || 0) >= t.min).pop();
-const nextTier = lt => TIERS.find(t => (lt || 0) < t.min) || null;
-const canUse = rw => loggedIn() && Acc.profile.points >= rw.cost;
-const nextIsBonus = () => loggedIn() && ((Acc.profile.data.purchases || 0) + 1) % 5 === 0;
-function earnFor(type, count) {
-  const base = type === 'day' ? 25 : 10;
-  return Math.round(base * count * tierOf(Acc.profile.lifetime).mult) + (nextIsBonus() ? 20 : 0);
-}
-function orderDiscount() {
-  const rw = S.buy.reward && REWARDS.find(r => r.id === S.buy.reward);
-  return rw && canUse(rw) ? Math.round(unitPrice(S.buy.type) * rw.pct * 100) / 100 : 0;
-}
-const orderTotal = () => Math.max(0, Math.round((unitPrice(S.buy.type) * S.buy.count - orderDiscount()) * 100) / 100);
-function rewardsBlock() {
-  if (!loggedIn()) return `<button class="pts-cta" data-a="gologin">${icon('spark')}<span><b>Zbiraj točke za popuste</b><span>Prijavi se – +10 točk za vsako vozovnico</span></span>${icon('chev')}</button>`;
-  const pts = Acc.profile.points;
-  return `<div class="seg-label">Unovči točke · imaš <b>${pts}</b></div>
-    <div class="rw-row">${REWARDS.map(r => `<button class="rw ${S.buy.reward === r.id && canUse(r) ? 'on' : ''}" data-a="buyuse" data-id="${r.id}" ${canUse(r) ? '' : 'disabled'}>
-      <b>${r.label}</b><span>${canUse(r) ? r.cost + ' točk' : 'še ' + (r.cost - pts) + ' točk'}</span></button>`).join('')}</div>`;
-}
+const orderTotal = () => Math.round(unitPrice(S.buy.type) * S.buy.count * 100) / 100;
 
 /* --- sinhronizacija lokalnih podatkov z računom --- */
 const okRoute = r => r && STATIONS[r.from] && STATIONS[r.to];
@@ -1396,7 +1367,7 @@ function freqHtml() {
     if (!HAS_ACC) return '';
     return `<section class="section"><button class="acc-cta" data-a="tab" data-t="profile">
       <span class="av-stack">${AV ? AV.svg({ hair: 'curly', hairColor: '#1E1214', skin: '#C98E62', bg: '#FFD3C2', outfit: '#1F4FB4', eyes: 'happy' }, 40) + AV.svg({ hair: 'long', hairColor: '#C98B4B', bg: '#FDE3E7', mouth: 'grin' }, 40) + AV.svg({ hair: 'cap', outfit: '#C8102E', bg: '#E9D7FF', eyes: 'wink' }, 40) : ''}</span>
-      <span class="tx"><b>Ustvari svoj račun</b><span>Shrani relacije, zbiraj točke za popuste in si nariši avatar.</span></span>${icon('chev')}</button></section>`;
+      <span class="tx"><b>Ustvari svoj račun</b><span>Shrani relacije na vseh napravah in si nariši svoj avatar.</span></span>${icon('chev')}</button></section>`;
   }
   const fr = freqRoutes(3);
   if (!fr.length) return '';
@@ -1425,7 +1396,6 @@ SCREENS.profile = () => {
     <div class="set-card benefits">
       <div class="set-row"><span class="ic">${icon('history')}</span><span class="tx"><b>Shranjene relacije</b><span>Nedavna iskanja in priljubljene relacije na vseh napravah</span></span></div>
       <div class="set-row"><span class="ic">${icon('spark')}</span><span class="tx"><b>Pogoste relacije na začetku</b><span>Kar pogosto iščeš, je takoj na glavnem zaslonu</span></span></div>
-      <div class="set-row"><span class="ic">${icon('gift')}</span><span class="tx"><b>Točke in popusti</b><span>Za vsako vozovnico točke, za točke popusti do brezplačne vožnje</span></span></div>
       <div class="set-row"><span class="ic">${icon('user')}</span><span class="tx"><b>Tvoj avatar</b><span>Nariši lik, ki je podoben tebi</span></span></div>
     </div>
     ${cfgOk ? `<div style="padding:16px 16px 0;display:grid;gap:10px">
@@ -1433,37 +1403,21 @@ SCREENS.profile = () => {
       <button class="ghost-btn" data-a="auth" data-m="login">Že imam račun – prijava</button></div>`
     : `<p class="set-foot">Povezava z bazo računov še ni nastavljena.</p>`}`;
   }
-  const p = Acc.profile, tier = tierOf(p.lifetime), nt = nextTier(p.lifetime);
-  const prog = nt ? Math.round(((p.lifetime - tier.min) / (nt.min - tier.min)) * 100) : 100;
+  const p = Acc.profile;
   const fr = freqRoutes(5);
-  const hist = (p.data.history || []).slice(0, 8);
+  const searches = Object.values(p.data.routeCounts || {}).reduce((a, b) => a + b, 0);
   return `<section class="prof-hero">
       <button class="prof-av" data-a="aved" aria-label="Uredi avatar">${AV ? AV.svg(p.avatar, 92) : ''}<span>${icon('edit')}</span></button>
-      <div class="prof-tx"><h1>${esc(p.name || 'Potnik')}</h1><p>${esc(Acc.user.email)}</p>
-        <span class="tier" style="--tc:${tier.c}">${icon('trophy')}${tier.name}${tier.mult > 1 ? ' · ×' + String(tier.mult).replace('.', ',') + ' točk' : ''}</span></div>
+      <div class="prof-tx"><h1>${esc(p.name || 'Potnik')}</h1><p>${esc(Acc.user.email)}</p></div>
       <button class="round-btn" data-a="editname" aria-label="Uredi ime">${icon('edit')}</button>
     </section>
-    <section class="pts-card">
-      <div><small>Tvoje točke</small><b>${p.points}</b></div>
-      <div class="pts-prog"><i style="width:${prog}%;background:${nt ? nt.c : tier.c}"></i></div>
-      <p>${nt ? `Še <b>${nt.min - p.lifetime}</b> točk do nivoja <b>${nt.name}</b> (×${String(nt.mult).replace('.', ',')} točk)` : 'Dosegel si najvišji nivo – vsaka vozovnica šteje ×1,5!'}</p>
-    </section>
-    <div class="set-title">Nagrade</div>
-    <div class="set-card">${REWARDS.map(r => `<div class="set-row"><span class="ic ${p.points >= r.cost ? 'ok' : ''}">${icon('gift')}</span>
-      <span class="tx"><b>${r.label}</b><span>${r.desc} · ${r.cost} točk</span>
-      <span class="mini-prog"><i style="width:${Math.min(100, Math.round(p.points / r.cost * 100))}%"></i></span></span>
-      <span class="val">${p.points >= r.cost ? '<em class="ready">Na voljo</em>' : 'še ' + (r.cost - p.points)}</span></div>`).join('')}
-      <p class="set-hint">Nagrado izbereš pri nakupu vozovnice.</p></div>
-    <div class="set-title">Kako zbiraš točke</div>
-    <div class="set-card how">
-      <div><b>+10</b><span>za vsako vozovnico (na potnika)</span></div>
-      <div><b>+25</b><span>za dnevno vozovnico</span></div>
-      <div><b>+20</b><span>bonus za vsak 5. nakup</span></div>
-      <div><b>×1,5</b><span>na nivoju Zlato (Srebro ×1,25)</span></div>
+    <div class="set-card how prof-stats">
+      <div><b>${searches}</b><span>${plural(searches, 'iskanje', 'iskanji', 'iskanja', 'iskanj')}</span></div>
+      <div><b>${D.favs.length}</b><span>${plural(D.favs.length, 'priljubljena', 'priljubljeni', 'priljubljene', 'priljubljenih')}</span></div>
+      <div><b>${D.tickets.length}</b><span>${plural(D.tickets.length, 'vozovnica', 'vozovnici', 'vozovnice', 'vozovnic')}</span></div>
     </div>
     ${fr.length ? `<div class="set-title">Pogoste relacije</div><div class="route-list" style="padding:0 16px">${fr.map(r => `<button class="route-item" data-a="route" data-from="${r.from}" data-to="${r.to}">
       <span class="ic">${icon('spark')}</span><span class="tx"><strong><span class="nm">${esc(stName(r.from))}</span> ${icon('arrow')} <span class="nm">${esc(stName(r.to))}</span></strong><span>Iskano ${r.c}×</span></span>${icon('chev')}</button>`).join('')}</div>` : ''}
-    ${hist.length ? `<div class="set-title">Zgodovina točk</div><div class="set-card hist">${hist.map(h => `<div><span>${esc(h.txt)}<small>${agoText(h.at)}</small></span><b class="${h.d < 0 ? 'neg' : ''}">${h.d > 0 ? '+' : ''}${h.d}</b></div>`).join('')}</div>` : ''}
     <div class="set-title">Račun</div>
     <div class="set-card">
       <button class="set-row" data-a="syncnow"><span class="ic">${icon('cloud')}</span><span class="tx"><b>${Acc.error ? 'Sinhronizacija' : 'Shranjeno v oblaku'}</b><span>${Acc.error ? esc(Acc.error) : Acc.lastSync ? 'Zadnja sinhronizacija ' + agoText(Acc.lastSync) : 'Prijavi se na drugem telefonu z istim e-naslovom'}</span></span><span class="val">Osveži</span></button>
@@ -1683,9 +1637,7 @@ function buyHtml() {
     <div class="seg-label">Ali</div>
     <div class="seg">${ents.filter(e => e[1].fixed).map(row).join('')}</div>
     <div class="stepper"><span><b>Število potnikov</b></span><div class="ctr"><button data-a="bcount" data-v="-1" aria-label="Manj">−</button><b>${b.count}</b><button data-a="bcount" data-v="1" aria-label="Več">+</button></div></div>
-    ${rewardsBlock()}
-    <div class="total"><span>Skupaj za plačilo</span><b>${orderDiscount() ? `<s>${eur(unitPrice(b.type) * b.count)}</s> ` : ''}${eur(orderTotal())}</b></div>
-    ${loggedIn() ? `<p class="earn-note">${icon('spark')}Za ta nakup dobiš <b>+${earnFor(b.type, b.count)} točk</b>${nextIsBonus() ? ' (vključno z zvestobnim bonusom)' : ''}</p>` : ''}
+    <div class="total"><span>Skupaj za plačilo</span><b>${eur(orderTotal())}</b></div>
     <button class="cta" data-a="bconfirm">${icon('ticket')} Potrdi nakup</button>
     <p class="demo-note">Demo aplikacija – plačilo se ne izvede, vozovnica je samo za prikaz.</p>
   </div>`;
@@ -1744,7 +1696,6 @@ const A = {
   day: el => { S.date = el.dataset.d; if (current() === 'results') S.time = null; render(current() === 'results' ? 'fade' : 'none'); },
   search: doSearch,
   route: el => { S.from = el.dataset.from; S.to = el.dataset.to; S.date = todayKey(); S.time = null; doSearch(); },
-  buyuse: el => { S.buy.reward = S.buy.reward === el.dataset.id ? null : el.dataset.id; sheet.innerHTML = '<div class="grab"></div>' + buyHtml(); },
   back: () => history.back(),
   fav: () => {
     const i = D.favs.findIndex(r => r.from === S.from && r.to === S.to);
@@ -1764,7 +1715,7 @@ const A = {
     S.sel = mkConn([mkLeg(dir, +el.dataset.i, dir.stops.length - 1, +el.dataset.s)]);
     S.selDate = todayKey(); push('detail');
   },
-  buy: () => { S.buy = { type: 'odr', count: 1, reward: null }; openSheet(buyHtml()); },
+  buy: () => { S.buy = { type: 'odr', count: 1 }; openSheet(buyHtml()); },
   btype: el => { S.buy.type = el.dataset.t; sheet.innerHTML = '<div class="grab"></div>' + buyHtml(); },
   bcount: el => { S.buy.count = Math.min(9, Math.max(1, S.buy.count + +el.dataset.v)); sheet.innerHTML = '<div class="grab"></div>' + buyHtml(); },
   bconfirm: () => {
@@ -1777,26 +1728,13 @@ const A = {
       lines: c.legs.map(x => x.dir.line.id), color: f.dir.line.color, peron: peron(f.dir, f.i),
       type: S.buy.type, count: S.buy.count, total: orderTotal(),
     };
-    const rw = S.buy.reward && REWARDS.find(r => r.id === S.buy.reward);
-    if (rw && canUse(rw)) t.reward = rw.label;
-    let earned = 0;
-    if (loggedIn()) {
-      earned = earnFor(S.buy.type, S.buy.count);
-      t.points = earned;
-      Acc.save(p => {
-        if (rw && p.points >= rw.cost) { p.points -= rw.cost; p.data.history.unshift({ at: Date.now(), d: -rw.cost, txt: 'Unovčeno: ' + rw.label }); }
-        p.points += earned; p.lifetime += earned; p.data.purchases = (p.data.purchases || 0) + 1;
-        p.data.history.unshift({ at: Date.now(), d: earned, txt: 'Vozovnica ' + stName(t.from) + ' → ' + stName(t.to) });
-        p.data.history = p.data.history.slice(0, 40);
-      });
-    }
     D.tickets.push(t); store.save();
     if (document.activeElement) document.activeElement.blur();
     sheet.classList.remove('open'); backdrop.classList.remove('open');
     S.tab = 'tickets'; nav.tickets = ['tickets', 'ticket']; S.ticket = t.id;
     try { history.replaceState({}, ''); } catch (e) {}
     render('enter');
-    toast(earned ? `Vozovnica kupljena ✓ · +${earned} točk` : 'Vozovnica je kupljena ✓');
+    toast('Vozovnica je kupljena ✓');
   },
   ticket: el => { S.ticket = el.dataset.id; push('ticket'); },
   delticket: () => {
@@ -1860,7 +1798,6 @@ const A = {
   speak: () => speakTrip(),
 
   /* račun */
-  gologin: () => { closeSheet(); setTimeout(() => switchTab('profile'), 50); },
   signupstart: () => {
     if (sheet.classList.contains('open')) closeSheet();
     S.av = { draft: AV.random(), mode: 'signup', cat: 'hair' };

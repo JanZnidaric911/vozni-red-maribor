@@ -1,8 +1,8 @@
 {
-    "build":  "20261123-143359",
+    "build":  "20261124-091035",
     "version":  "1.5",
     "apk":  6,
     "apkUrl":  "https://janznidaric911.github.io/vozni-red-maribor/",
     "apkNote":  "",
-    "opis":  "Poti samo po cestah, pravi 2D zemljevid"
+    "opis":  "Odstranjen sistem točk"
 }
